@@ -174,10 +174,11 @@ module main (
                 if (dmem_addr[2] == 0) dcache[w_index][63:32] <= dmem_wdata;
                 else dcache[w_index][31:0] <= dmem_wdata;
             end
-        end else if (dmem_we && dmem_wstrb!=4'hf) dcache[w_index] <= 0;
-        else if (dmem_oe) begin
-            dcache[r_index] <= {1'b1, r_dmem_addr[31:10], dmem_rdata0, dmem_rdata1};
-            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:10], dmem_rdata0, dmem_rdata1};
+        end else if (dmem_we && dmem_wstrb!=4'hf) begin
+             dcache[w_index] <= 0;
+        end else if (dmem_oe) begin
+            dcache[r_index] <= {1'b1, r_dmem_addr[31:11], dmem_rdata0, dmem_rdata1};
+            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:11], dmem_rdata0, dmem_rdata1};
         end
         if (dmem_re) begin
             if (dmem_addr[2] == 0) {r_dc_v, r_dc_tag, r_dc_data} <= {dcache[w_index][85], dcache[w_index][84:64], dcache[w_index][63:32]};
@@ -192,8 +193,10 @@ module main (
     wire [31:0] dmem_wdata = r_init_done ? dbus_wdata : r_init_data;
     wire [3:0]  dmem_wstrb = r_init_done ? dbus_wstrb : 4'b1111;
     wire        dmem_re    = r_init_done ? !dbus_we & (dbus_addr[28]) : 0;
-    wire        dmem_oe;
+    wire        dmem_oe    = dmem_oe0 | dmem_oe1;
     
+    wire        dmem_oe0:
+    wire        dmem_oe1;
     wire [31:0] dmem_rdata0;
     wire [31:0] dmem_rdata1;
     wire [31:0] dmem_base = {r_dmem_addr[31:3], 3'b000};
@@ -205,7 +208,7 @@ module main (
         .wdata_i (r_dmem_wdata),  // input  wire [DATA_WIDTH-1:0]
         .wstrb_i (r_dmem_wstrb),  // input  wire [STRB_WIDTH-1:0]
         .rdata_o (dmem_rdata0),   // output reg  [DATA_WIDTH-1:0]
-        .oe      (dmem_oe)      //
+        .oe      (dmem_oe0)      //
     );
      m_dmem dmem1 (
         .clk_i   (clk),         // input  wire
@@ -215,7 +218,7 @@ module main (
         .wdata_i (r_dmem_wdata),  // input  wire [DATA_WIDTH-1:0]
         .wstrb_i (r_dmem_wstrb),  // input  wire [STRB_WIDTH-1:0]
         .rdata_o (dmem_rdata1),   // output reg  [DATA_WIDTH-1:0]
-        .oe      (dmem_oe)      //
+        .oe      (dmem_oe1)      //
     );
 
     wire        vmem_we    = dbus_we & (dbus_addr[29]);
