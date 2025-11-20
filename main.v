@@ -161,30 +161,30 @@ module main (
             {r_dmem_addr, r_dmem_wdata, r_dmem_wstrb} <= {dmem_addr, dmem_wdata, dmem_wstrb};
         end
     end
-    (* ram_style = "block" *) reg [52:0] dcache[0:1023]; // 1-bit valid, 20-bit tag, 32-bit data
-    integer i; initial for (i=0; i<1024; i=i+1) dcache[i] = 0;
+    reg [54:0] dcache[0:255]; // 1-bit valid, 22-bit tag, 32-bit data
+    integer i; initial for (i=0; i<256; i=i+1) dcache[i] = 0;
     reg r_dc_v;
-    reg [19:0] r_dc_tag;
+    reg [21:0] r_dc_tag;
     reg [31:0] r_dc_data;
-    wire [9:0] w_index = dmem_addr[11:2];
-    wire [9:0] r_index = r_dmem_addr[11:2];
+    wire [7:0] w_index = dmem_addr[9:2];
+    wire [7:0] r_index = r_dmem_addr[9:2];
 
-    wire [52:0] w_cache_wdata = (dmem_wstrb == 4'hf) ? {1'b1, dmem_addr[31:12], dmem_wdata} : 53'd0;
+    wire [54:0] w_cache_wdata = (dmem_wstrb == 4'hf) ? {1'b1, dmem_addr[31:10], dmem_wdata} : 55'd0;
 
     always @(posedge clk) begin
         if (dmem_we) begin
             dcache[w_index] <= w_cache_wdata;
         end else if (dmem_oe) begin
-            dcache[r_index] <= {1'b1, r_dmem_addr[31:12], dmem_rdata};
+            dcache[r_index] <= {1'b1, r_dmem_addr[31:10], dmem_rdata};
         end
         if (dmem_oe) begin
-            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:12], dmem_rdata};
+            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:10], dmem_rdata};
         end else if (dmem_re) begin
             {r_dc_v, r_dc_tag, r_dc_data} <= dcache[w_index];
         end
     end
-    wire w_dc_hit = r_dmem_re && (r_dc_v && (r_dc_tag == r_dmem_addr[31:12]));
-    wire w_dc_mis = r_dmem_re && !(r_dc_v && (r_dc_tag == r_dmem_addr[31:12]));
+    wire w_dc_hit = r_dmem_re && (r_dc_v && (r_dc_tag == r_dmem_addr[31:10]));
+    wire w_dc_mis = r_dmem_re && !(r_dc_v && (r_dc_tag == r_dmem_addr[31:10]));
 
     wire        dmem_we    = r_init_done ? dbus_we & (dbus_addr[28]) : (r_init_v && (r_byte_cnt>=`IMEM_SIZE));
     wire [31:0] dmem_addr  = r_init_done ? dbus_addr : (r_init_addr - `IMEM_SIZE);
