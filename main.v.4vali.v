@@ -1,3 +1,4 @@
+// direct map
 /* CFU Proving Ground since 2025-02    Copyright(c) 2025 Archlab. Science Tokyo /
 / Released under the MIT license https://opensource.org/licenses/mit           */
 
@@ -160,24 +161,33 @@ module main (
             {r_dmem_addr, r_dmem_wdata, r_dmem_wstrb} <= {dmem_addr, dmem_wdata, dmem_wstrb};
         end
     end
-    reg [62:0] dcache[0:1023]; // 1-bit valid, 30-bit tag, 32-bit data
-    integer i; initial for (i=0; i<1024; i=i+1) dcache[i] = 0;
+    reg [54:0] dcache[0:255]; // 1-bit valid, 22-bit tag, 32-bit data
+    integer i; initial for (i=0; i<256; i=i+1) dcache[i] = 0;
     reg r_dc_v;
-    reg [29:0] r_dc_tag;
+    reg [21:0] r_dc_tag;
     reg [31:0] r_dc_data;
-    wire [9:0] w_index = dmem_addr[11:2];
-    wire [9:0] r_index = r_dmem_addr[11:2];
+    wire [7:0] w_index = dmem_addr[9:2];
+    wire [7:0] r_index = r_dmem_addr[9:2];
     always @(posedge clk) begin
-        if (dmem_we && dmem_wstrb==4'hf) dcache[w_index] <= {1'b1, dmem_addr[31:2], dmem_wdata};
-        else if (dmem_we && dmem_wstrb!=4'hf) dcache[w_index] <= 0;
-        else if (dmem_oe) begin
-            dcache[r_index] <= {1'b1, r_dmem_addr[31:2], dmem_rdata};
-            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:2], dmem_rdata};
+        if (dmem_we && dmem_wstrb==4'hf) dcache[w_index] <= {1'b1, dmem_addr[31:10], dmem_wdata};
+        else if (dmem_we && dmem_wstrb!=4'hf) begin
+            if (dcache[w_index][54] && dcache[w_index][53:32]==dmem_addr[31:10]) begin
+                dcache[w_index][31:0] <=
+                    {(dmem_wstrb[3] ? dmem_wdata[31:24] : dcache[w_index][31:24]),
+                     (dmem_wstrb[2] ? dmem_wdata[23:16] : dcache[w_index][23:16]),
+                     (dmem_wstrb[1] ? dmem_wdata[15:8]  : dcache[w_index][15:8]),
+                     (dmem_wstrb[0] ? dmem_wdata[7:0]   : dcache[w_index][7:0])};
+            end else begin
+                dcache[w_index] <= 0;
+            end
+        end else if (dmem_oe) begin
+            dcache[r_index] <= {1'b1, r_dmem_addr[31:10], dmem_rdata};
+            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:10], dmem_rdata};
         end
         if (dmem_re) {r_dc_v, r_dc_tag, r_dc_data} <= dcache[w_index];
     end
-    wire w_dc_hit = r_dmem_re && (r_dc_v && (r_dc_tag == r_dmem_addr[31:2]));
-    wire w_dc_mis = r_dmem_re && !(r_dc_v && (r_dc_tag == r_dmem_addr[31:2]));
+    wire w_dc_hit = r_dmem_re && (r_dc_v && (r_dc_tag == r_dmem_addr[31:10]));
+    wire w_dc_mis = r_dmem_re && !(r_dc_v && (r_dc_tag == r_dmem_addr[31:10]));
 
     wire        dmem_we    = r_init_done ? dbus_we & (dbus_addr[28]) : (r_init_v && (r_byte_cnt>=`IMEM_SIZE));
     wire [31:0] dmem_addr  = r_init_done ? dbus_addr : (r_init_addr - `IMEM_SIZE);
