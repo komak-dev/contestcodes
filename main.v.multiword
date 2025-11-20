@@ -112,7 +112,7 @@ module main (
         end
     end
     
-    wire                        rst = !rst_ni || !locked || !r_init_done;;
+    wire                        rst = !rst_ni || !locked || !r_init_done;
     wire [`IBUS_ADDR_WIDTH-1:0] imem_raddr;
     wire [`IBUS_DATA_WIDTH-1:0] imem_rdata;
     wire                        dbus_we;
@@ -178,11 +178,15 @@ module main (
              dcache[w_index] <= 0;
         end else if (dmem_oe) begin
             dcache[r_index] <= {1'b1, r_dmem_addr[31:11], dmem_rdata0, dmem_rdata1};
-            {r_dc_v, r_dc_tag, r_dc_data} <= {1'b1, r_dmem_addr[31:11], dmem_rdata0, dmem_rdata1};
+            r_dc_v    <= 1'b1;
+            r_dc_tag  <= r_dmem_addr[31:11];
+            r_dc_data <= (r_dmem_addr[2] == 0) ? dmem_rdata0 : dmem_rdata1;
         end
         if (dmem_re) begin
-            if (dmem_addr[2] == 0) {r_dc_v, r_dc_tag, r_dc_data} <= {dcache[w_index][85], dcache[w_index][84:64], dcache[w_index][63:32]};
-            else {r_dc_v, r_dc_tag, r_dc_data} <= {dcache[w_index][85], dcache[w_index][84:64], dcache[w_index][31:0]};
+            r_dc_v <= dcache[w_index][85];
+            r_dc_tag <= dcache[w_index][84:64];
+            if (dmem_addr[2] == 0) r_dc_data <= dcache[w_index][63:32];
+            else r_dc_data <= dcache[w_index][31:0];
         end
     end
     wire w_dc_hit = r_dmem_re && (r_dc_v && (r_dc_tag == r_dmem_addr[31:11]));
@@ -193,9 +197,9 @@ module main (
     wire [31:0] dmem_wdata = r_init_done ? dbus_wdata : r_init_data;
     wire [3:0]  dmem_wstrb = r_init_done ? dbus_wstrb : 4'b1111;
     wire        dmem_re    = r_init_done ? !dbus_we & (dbus_addr[28]) : 0;
-    wire        dmem_oe    = dmem_oe0 | dmem_oe1;
+    wire        dmem_oe    = dmem_oe0 & dmem_oe1;
     
-    wire        dmem_oe0:
+    wire        dmem_oe0;
     wire        dmem_oe1;
     wire [31:0] dmem_rdata0;
     wire [31:0] dmem_rdata1;
